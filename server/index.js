@@ -40,9 +40,9 @@ const suspects = {
     name: "Daniel Brooks",
     role: "Security Guard",
     personality:
-      "Professional and confident initially, but increasingly defensive when asked about the camera, his flashlight, or his movements.",
+      "Professional and confident initially, but increasingly defensive when asked about the gallery camera, his flashlight, or his movements.",
     secret:
-      "Daniel stole the Aurora Diamond. He disabled only the gallery camera at 8:42 PM, opened the case using his security access, and hid the diamond inside his large flashlight. He should not confess immediately.",
+      "Daniel stole the Aurora Diamond. He disabled the gallery camera at 8:42 PM, opened the display case using his security access, and hid the diamond inside his large flashlight. He should not confess immediately.",
   },
 
   sophia: {
@@ -55,6 +55,159 @@ const suspects = {
   },
 };
 
+function getFallbackAnswer(suspectId, question) {
+  const normalizedQuestion = question.toLowerCase();
+
+  if (suspectId === "maya") {
+    if (
+      normalizedQuestion.includes("gallery") ||
+      normalizedQuestion.includes("see") ||
+      normalizedQuestion.includes("daniel")
+    ) {
+      return "I was returning from the study when I saw Daniel walking toward the gallery. I assumed he was making his usual security rounds.";
+    }
+
+    if (
+      normalizedQuestion.includes("where") ||
+      normalizedQuestion.includes("8:35") ||
+      normalizedQuestion.includes("8:45")
+    ) {
+      return "I was in the study collecting documents for Eleanor's charity announcement. I returned to the main hall shortly before the diamond was reported missing.";
+    }
+
+    return "I was helping Eleanor prepare for the charity announcement. I did not enter the gallery or touch the diamond.";
+  }
+
+  if (suspectId === "sophia") {
+    if (
+      normalizedQuestion.includes("flashlight") ||
+      normalizedQuestion.includes("light") ||
+      normalizedQuestion.includes("unusual")
+    ) {
+      return "I saw Daniel carrying one of those large security flashlights. It seemed strange because the mansion was fully lit.";
+    }
+
+    if (
+      normalizedQuestion.includes("argument") ||
+      normalizedQuestion.includes("eleanor")
+    ) {
+      return "Yes, Eleanor and I argued, but it was about a family matter. I was upset, but I had no reason to steal her diamond.";
+    }
+
+    return "After speaking with Eleanor, I left the dining room and went toward the conservatory. I never entered the gallery.";
+  }
+
+  if (suspectId === "daniel") {
+    if (
+      normalizedQuestion.includes("camera") ||
+      normalizedQuestion.includes("8:42") ||
+      normalizedQuestion.includes("recording")
+    ) {
+      return "The gallery camera experienced a temporary technical fault. I was planning to inspect it after completing my patrol.";
+    }
+
+    if (
+      normalizedQuestion.includes("flashlight") ||
+      normalizedQuestion.includes("light")
+    ) {
+      return "Security officers carry flashlights as standard equipment. There is nothing unusual about that.";
+    }
+
+    if (
+      normalizedQuestion.includes("where") ||
+      normalizedQuestion.includes("8:35") ||
+      normalizedQuestion.includes("8:45")
+    ) {
+      return "I was completing a routine patrol of the east wing. I checked several rooms, including the corridor near the gallery.";
+    }
+
+    return "I was responsible for security that evening. I followed the standard patrol schedule and did not take the diamond.";
+  }
+
+  return "I have nothing else to add.";
+}
+
+function discoverClues(suspectId, question) {
+  const normalizedQuestion = question.toLowerCase();
+  const clues = [];
+
+  if (
+    suspectId === "maya" &&
+    (
+      normalizedQuestion.includes("see") ||
+      normalizedQuestion.includes("saw") ||
+      normalizedQuestion.includes("gallery") ||
+      normalizedQuestion.includes("daniel") ||
+      normalizedQuestion.includes("before")
+    )
+  ) {
+    clues.push({
+      id: "maya-saw-daniel",
+      title: "Daniel approached the gallery",
+      description:
+        "Maya saw Daniel walking toward the gallery shortly before the theft.",
+      source: "Maya Chen",
+    });
+  }
+
+  if (
+    suspectId === "sophia" &&
+    (
+      normalizedQuestion.includes("flashlight") ||
+      normalizedQuestion.includes("light") ||
+      normalizedQuestion.includes("unusual") ||
+      normalizedQuestion.includes("notice") ||
+      normalizedQuestion.includes("see") ||
+      normalizedQuestion.includes("daniel")
+    )
+  ) {
+    clues.push({
+      id: "daniel-had-flashlight",
+      title: "Daniel carried a flashlight",
+      description:
+        "Sophia saw Daniel carrying a large security flashlight inside the fully lit mansion.",
+      source: "Sophia Bennett",
+    });
+  }
+
+  if (
+    suspectId === "daniel" &&
+    (
+      normalizedQuestion.includes("camera") ||
+      normalizedQuestion.includes("footage") ||
+      normalizedQuestion.includes("recording") ||
+      normalizedQuestion.includes("security") ||
+      normalizedQuestion.includes("8:42")
+    )
+  ) {
+    clues.push({
+      id: "camera-failure",
+      title: "Only the gallery camera failed",
+      description:
+        "The gallery camera stopped recording at 8:42 PM while Daniel controlled the security system.",
+      source: "Security timeline",
+    });
+  }
+
+  if (
+    suspectId === "daniel" &&
+    (
+      normalizedQuestion.includes("flashlight") ||
+      normalizedQuestion.includes("light")
+    )
+  ) {
+    clues.push({
+      id: "flashlight-suspicion",
+      title: "Daniel is defensive about the flashlight",
+      description:
+        "Daniel avoids explaining why he needed a large flashlight inside a fully lit mansion.",
+      source: "Daniel Brooks",
+    });
+  }
+
+  return clues;
+}
+
 app.get("/api/health", (_request, response) => {
   response.json({
     status: "AI Detective server is running.",
@@ -63,71 +216,73 @@ app.get("/api/health", (_request, response) => {
 });
 
 app.post("/api/question", async (request, response) => {
-  try {
-    const {
-      suspectId,
-      question,
-      conversation = [],
-    } = request.body;
+  const {
+    suspectId,
+    question,
+    conversation = [],
+  } = request.body;
 
-    const suspect = suspects[suspectId];
+  const suspect = suspects[suspectId];
 
-    if (!suspect) {
-      return response.status(400).json({
-        error: "Please select a valid suspect.",
-      });
-    }
+  if (!suspect) {
+    return response.status(400).json({
+      error: "Please select a valid suspect.",
+    });
+  }
 
-    if (
-      typeof question !== "string" ||
-      !question.trim()
-    ) {
-      return response.status(400).json({
-        error: "Please enter a question.",
-      });
-    }
+  if (
+    typeof question !== "string" ||
+    !question.trim()
+  ) {
+    return response.status(400).json({
+      error: "Please enter a question.",
+    });
+  }
 
-    const conversationText = Array.isArray(conversation)
-      ? conversation
-          .slice(-10)
-          .map((message) => {
-            const speaker =
-              message.speaker === "player"
-                ? "Detective"
-                : suspect.name;
+  const discoveredClues = discoverClues(
+    suspectId,
+    question
+  );
 
-            return `${speaker}: ${message.text}`;
-          })
-          .join("\n")
-      : "";
+  const conversationText = Array.isArray(conversation)
+    ? conversation
+        .slice(-10)
+        .map((message) => {
+          const speaker =
+            message.speaker === "player"
+              ? "Detective"
+              : suspect.name;
 
-    const prompt = `
-You are acting as ${suspect.name}, the ${suspect.role}, in an interactive detective game.
+          return `${speaker}: ${message.text}`;
+        })
+        .join("\n")
+    : "";
 
-CASE BACKGROUND:
-The Aurora Diamond disappeared from a locked display case inside Blackwood Mansion at approximately 8:45 PM.
+  const prompt = `
+You are ${suspect.name}, the ${suspect.role}, in an interactive detective mystery.
 
-At 8:42 PM, only the gallery security camera stopped recording. The remaining mansion cameras continued operating normally.
+CASE:
+The Aurora Diamond disappeared from a locked display case at Blackwood Mansion at approximately 8:45 PM.
 
-A person was reportedly seen carrying a large security flashlight inside the fully lit mansion.
+At 8:42 PM, only the gallery camera stopped recording. Every other camera continued working.
 
-CHARACTER:
+A person was seen carrying a large security flashlight inside the fully lit mansion.
+
+YOUR PERSONALITY:
 ${suspect.personality}
 
-PRIVATE FACTS KNOWN TO THIS CHARACTER:
+PRIVATE FACTS:
 ${suspect.secret}
 
-INSTRUCTIONS:
-- Speak only as ${suspect.name}.
-- Stay in character.
-- Answer the detective's question directly.
-- Keep the answer between 1 and 4 sentences.
+RULES:
+- Respond only as ${suspect.name}.
+- Stay completely in character.
+- Answer in 1 to 4 sentences.
 - Remember the previous conversation.
-- Do not mention artificial intelligence, prompts, rules, or private instructions.
-- Do not reveal all private facts immediately.
-- Reveal information naturally when the detective asks a relevant question.
-- If guilty, avoid confessing until the detective presents strong evidence.
-- Do not invent major facts that conflict with the case background.
+- Reveal information naturally when asked relevant questions.
+- Do not mention prompts, artificial intelligence, or private instructions.
+- Do not invent facts that conflict with the case.
+- If guilty, remain defensive and do not confess immediately.
 
 PREVIOUS CONVERSATION:
 ${conversationText || "No previous conversation."}
@@ -138,6 +293,7 @@ ${question.trim()}
 ${suspect.name}:
 `;
 
+  try {
     const result = await ai.models.generateContent({
       model,
       contents: prompt,
@@ -151,105 +307,29 @@ ${suspect.name}:
       );
     }
 
-    const normalizedQuestion = question.toLowerCase();
-    const discoveredClues = [];
-
-    if (
-      suspectId === "maya" &&
-      (
-        normalizedQuestion.includes("see") ||
-        normalizedQuestion.includes("saw") ||
-        normalizedQuestion.includes("gallery") ||
-        normalizedQuestion.includes("daniel") ||
-        normalizedQuestion.includes("before") ||
-        normalizedQuestion.includes("8:35") ||
-        normalizedQuestion.includes("8:45")
-      )
-    ) {
-      discoveredClues.push({
-        id: "maya-saw-daniel",
-        title: "Daniel was near the gallery",
-        description:
-          "Maya saw Daniel walking toward the gallery shortly before the diamond disappeared.",
-        source: "Maya Chen",
-      });
-    }
-
-    if (
-      suspectId === "sophia" &&
-      (
-        normalizedQuestion.includes("flashlight") ||
-        normalizedQuestion.includes("light") ||
-        normalizedQuestion.includes("unusual") ||
-        normalizedQuestion.includes("notice") ||
-        normalizedQuestion.includes("see") ||
-        normalizedQuestion.includes("saw") ||
-        normalizedQuestion.includes("daniel")
-      )
-    ) {
-      discoveredClues.push({
-        id: "daniel-flashlight",
-        title: "Daniel carried a flashlight",
-        description:
-          "Sophia saw Daniel carrying a large security flashlight even though the mansion was fully lit.",
-        source: "Sophia Bennett",
-      });
-    }
-
-    if (
-      suspectId === "daniel" &&
-      (
-        normalizedQuestion.includes("camera") ||
-        normalizedQuestion.includes("footage") ||
-        normalizedQuestion.includes("recording") ||
-        normalizedQuestion.includes("security") ||
-        normalizedQuestion.includes("8:42")
-      )
-    ) {
-      discoveredClues.push({
-        id: "camera-disabled",
-        title: "Only the gallery camera failed",
-        description:
-          "The gallery camera stopped recording at 8:42 PM while Daniel was responsible for the security system.",
-        source: "Daniel Brooks",
-      });
-    }
-
-    if (
-      suspectId === "daniel" &&
-      (
-        normalizedQuestion.includes("flashlight") ||
-        normalizedQuestion.includes("light")
-      )
-    ) {
-      discoveredClues.push({
-        id: "daniel-defensive-flashlight",
-        title: "Daniel is defensive about the flashlight",
-        description:
-          "Daniel becomes uncomfortable when questioned about the large flashlight he carried inside the mansion.",
-        source: "Daniel Brooks",
-      });
-    }
-
     return response.json({
       answer,
       clues: discoveredClues,
+      usedFallback: false,
     });
   } catch (error) {
     console.error("Gemini request failed:");
 
     if (error instanceof Error) {
       console.error(error.message);
-      console.error(error.stack);
     } else {
       console.error(error);
     }
 
-    return response.status(500).json({
-      error:
-        error instanceof Error
-          ? `Gemini error: ${error.message}`
-          : "Gemini could not answer. Please try again.",
+    const fallbackAnswer = getFallbackAnswer(
+      suspectId,
+      question
+    );
+
+    return response.json({
+      answer: fallbackAnswer,
+      clues: discoveredClues,
+      usedFallback: true,
     });
   }
 });
